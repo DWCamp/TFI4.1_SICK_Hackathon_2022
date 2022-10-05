@@ -9,7 +9,7 @@ from datetime import datetime
 import requests
 
 import PathQueue
-import NodeNetwork
+import node_network
 
 
 class AGV:
@@ -46,30 +46,34 @@ class AGV:
                     f"\nStatus Code: {self.status_code}"
                     f"\nText: {self.text if self.text else ''}")
 
-    def __init__(self, ttl=0.1):
+    def __init__(self, navigate=False, ttl=0.1):
         """
         A class for interfacing with a Safelog AGV
         :param ttl: The number of seconds before the network cache expires (Default: 0.2)
+        :param navigate: Whether the AGV should use custom pathing to nodes
         """
+        self.navigate = navigate    # TODO: Make this flag do something
+        self.cache_tts = ttl
+
         self.cache_time = None      # The timestamp of when the cache was last updated
         self.cache = None           # The cached data
-        self.cache_tts = ttl        # How many seconds before the cache expires
         self.stopped = False        # Whether the robot has been commanded to stop
 
         # Collect node network
         target_url = AGV.NETWORK_MAP_ENDPOINT
         print(target_url)
-        print("fetching network")
+        print("Fetching node list...")
 
         resp = requests.get(target_url)
         if resp.status_code != 200:
             print(resp.url)
             raise AGV.ConnectionException(resp)
-        print("got network")
-        self.network = NodeNetwork.Network(resp.json())
-        print("built network")
+        print("List aquired. Building network...")
+        self.network = node_network.Network(resp.json())
+        print("Network built.")
         self.queue = PathQueue.PathQueue(self)
-        print("created queue")
+        print("AGV Ready.")
+        print("---------------")
 
     def _check_cache(self, force: bool = False) -> bool:
         """
@@ -221,7 +225,7 @@ class AGV:
         """
         source = self.network.get_node(self.get_last_node())
         target = self.network.get_node(node_id)
-        path = NodeNetwork.navigate_between(source, target)
+        path = node_network.navigate_between(source, target)
         self.queue.queue_nodes(path)
         self.queue.start()
 
@@ -270,20 +274,34 @@ class AGV:
         self.stopped = not driving
         return self._send_action(command)
 
-    def turn_to(self, theta):
+    def rotate_left(self):
         """
-        Change the AGV's orientation to face the correct direction
-        :param theta: The target theta
+        Rotates the robot to the left
+        :return: The network response from the AGV
         """
-        curr_theta = self.get_theta()
-        delta_theta = theta - curr_theta
-        # '+5' allows for slight deviation in current theta (359 // 90 = 3, not 4)
-        turns = ((delta_theta + 5) // 1.5708) % 4     # Compute number of right turns
-        action = "TurnRight"
-        # If you are turning 3 times to the right, instead turn left
-        if turns == 3:
-            turns = 1
-            action = "TurnLeft"
-        # Commit turns
-        for _ in range(turns):
-            self._send_action(action)
+        return self._send_action("RotateLeft1")
+
+    def rotate_right(self):
+        """
+        Rotates the robot to the right
+        :return: The network response from the AGV
+        """
+        return self._send_action("RotateRight1")
+    #
+    # def turn_to(self, theta):
+    #     """
+    #     Change the AGV's orientation to face the correct direction
+    #     :param theta: The target theta
+    #     """
+    #     curr_theta = self.get_theta()
+    #     delta_theta = theta - curr_theta
+    #     # '+5' allows for slight deviation in current theta (359 // 90 = 3, not 4)
+    #     turns = ((delta_theta + 5) // 1.5708) % 4     # Compute number of right turns
+    #     action = "TurnRight"
+    #     # If you are turning 3 times to the right, instead turn left
+    #     if turns == 3:
+    #         turns = 1
+    #         action = "TurnLeft"
+    #     # Commit turns
+    #     for _ in range(turns):
+    #         self._send_action(action)

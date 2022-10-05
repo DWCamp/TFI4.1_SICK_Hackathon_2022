@@ -27,7 +27,6 @@ class Node:
         :param south: The adjacent node connected to this node's south port
         :param east: The adjacent node connected to this node's east port
         """
-        print(f"Adding node `{node_id}`...")
         self.id = node_id
         self.x = x
         self.y = y
@@ -176,6 +175,7 @@ class Network:
             obstacles = []
 
         # Generate all empty nodes
+        print("Adding nodes...")
         for node in network_map["nodes"]:
             position = node["nodeProperties"]["intelliAgentCore"]["position"]
 
@@ -190,6 +190,7 @@ class Network:
 
             self.node_dict[node["id"]] = Node(node["id"], position["x"], position["y"])
 
+        print("Setting neighbors...")
         # Create node edges
         for edge in network_map["edges"]:
             source_id = edge["source"]["node"]
@@ -200,7 +201,6 @@ class Network:
             source_node = self.node_dict[source_id]
             target_node = self.node_dict[target_id]
             port = edge["source"]["port"]
-            print(f"Setting node {source_node}'s `{port}` neighbor to {target_node}")
             source_node.set_neighbor(target_node, port)
 
     def get_node(self, node_id):
