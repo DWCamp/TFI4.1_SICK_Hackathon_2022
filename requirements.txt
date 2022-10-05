@@ -1,0 +1,5 @@
+azure-cognitiveservices-language-luis
+azure-cognitiveservices-speech
+luis
+requests~=2.28.1
+aiohttp~=3.8.3
