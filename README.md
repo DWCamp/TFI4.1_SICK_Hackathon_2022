@@ -1,6 +1,6 @@
 # README
 
-Imagine documenting a Hackathon project
+Who the hell documents a Hackathon project???
 
 ## Variables API
 

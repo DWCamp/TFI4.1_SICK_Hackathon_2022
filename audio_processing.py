@@ -95,15 +95,17 @@ class LanguageEngine:
     # For example, "https://westus.api.cognitive.microsoft.com/"
     PREDICTION_ENDPOINT = 'https://predicitnlp.cognitiveservices.azure.com/'
 
-    def __init__(self, agv, command_confidence=0.2):
+    def __init__(self, agv, confidence_threshold=0.5):
         """
         The class for processing language and listening for a
         :param agv: The object representing the being controlled
-        :param
+        :param confidence_threshold: The threshold of confidence below which a command
+            ignored. Goes from 0 to 1, with 1 being completely confident (Default: 0.5)
         """
         self.loop = asyncio.get_event_loop()
         self.agv = agv
         self.listening = True
+        self.confidence_threshold = confidence_threshold
 
         with open("keys.json") as fp:
             keys = json.load(fp)
@@ -154,17 +156,17 @@ class LanguageEngine:
             params=params)
         command = find_prediction(response.json())
 
+        # Abort if the confidence is too low
+        if command.confidence < self.confidence_threshold:
+            return
+
         # ================== Process command
 
-        # Abort if the
-        if command.confidence < 0.5:
-            return
         if command.intent == "Move":
             # Move to location
             if command.location:
                 node_id = locations[command.location]
                 self.agv.go_to_node(node_id)
-                # agv.navigate_to_node(node_id)
 
     async def start_microphone(self):
         """

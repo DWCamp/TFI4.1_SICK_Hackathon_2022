@@ -52,7 +52,7 @@ class AGV:
         :param ttl: The number of seconds before the network cache expires (Default: 0.2)
         :param navigate: Whether the AGV should use custom pathing to nodes
         """
-        self.navigate = navigate    # TODO: Make this flag do something
+        self.navigate = navigate
         self.cache_tts = ttl
 
         self.cache_time = None      # The timestamp of when the cache was last updated
@@ -196,17 +196,34 @@ class AGV:
     # ===============          SENDING COMMANDS          ===============
     # ==================================================================
 
-    def go_to_node(self, node_id: str) -> requests.Response:
+    def go_to_node(self, node_id: str, navigate=None) -> None:
         """
-        Sends the robot to a given node
-        NOTE: This function will return immediately, but the robot can not
-        be given a new command until it arrives at the node
-        :param node_id: The node for the robot to travel to
-        :return: The response from the API request
+        Sends the AGV to a given node. By default, this
+
+        :param node_id: The node for the AGV to travel to
+        :param navigate: Specify whether the AGV should be given custom
+            routing to its target. `True` for BFS-based traversal of
+            the NodeNetwork. `False` for using the AGV's built in routing,
+            and `None` to use the choice specified during initialization
+            (Default: None)
         """
-        return self._send_action("goto", action_parameters=[{"key": "end", "value": node_id}])
+        if navigate is None:
+            navigate = self.navigate
+
+        if navigate:    # BFS traversal of NodeNetwork
+            source = self.network.get_node(self.get_last_node())
+            target = self.network.get_node(node_id)
+            path = node_network.navigate_between(source, target)
+            self.queue.queue_nodes(path)
+            self.queue.start()
+        else:   # SafeLog's built-in pathfinding
+            self._send_action("goto", action_parameters=[{"key": "end", "value": node_id}])
 
     def go_forwards(self):
+        """
+        Makes the robot drive forwards indefinitely
+        :return: The response from the API request
+        """
         return self._send_action("DriveForwardsSpeed3")
 
     def go_to_coordinate(self, x: float, y: float) -> None:
@@ -217,17 +234,6 @@ class AGV:
         """
         target = self.network.get_closest_node(x, y)
         self.go_to_node(target.id)
-
-    def navigate_to_node(self, node_id: str):
-        """
-        Generates a path for the AVG and drives it to another node
-        :param node_id: The node to move to
-        """
-        source = self.network.get_node(self.get_last_node())
-        target = self.network.get_node(node_id)
-        path = node_network.navigate_between(source, target)
-        self.queue.queue_nodes(path)
-        self.queue.start()
 
     def init_position(self,
                       x: float,
@@ -251,8 +257,7 @@ class AGV:
             {"key": "mapId", "value": map_id},
             {"key": "lastNodeId", "value": last_node_id}
         ]
-        command = "initposition"
-        return self._send_action(command, action_parameters)
+        return self._send_action("initposition", action_parameters)
 
     def set_pin_up(self, pin_up: bool) -> requests.Response:
         """
@@ -287,21 +292,3 @@ class AGV:
         :return: The network response from the AGV
         """
         return self._send_action("RotateRight1")
-    #
-    # def turn_to(self, theta):
-    #     """
-    #     Change the AGV's orientation to face the correct direction
-    #     :param theta: The target theta
-    #     """
-    #     curr_theta = self.get_theta()
-    #     delta_theta = theta - curr_theta
-    #     # '+5' allows for slight deviation in current theta (359 // 90 = 3, not 4)
-    #     turns = ((delta_theta + 5) // 1.5708) % 4     # Compute number of right turns
-    #     action = "TurnRight"
-    #     # If you are turning 3 times to the right, instead turn left
-    #     if turns == 3:
-    #         turns = 1
-    #         action = "TurnLeft"
-    #     # Commit turns
-    #     for _ in range(turns):
-    #         self._send_action(action)
